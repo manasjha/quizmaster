@@ -1,8 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
-import { signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '../firebase';
 import { useEffect } from 'react';
 import { View, Button, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,37 +9,46 @@ WebBrowser.maybeCompleteAuthSession();
 export default function LoginScreen() {
   const router = useRouter();
 
-  const redirectUri = 'https://auth.expo.io/@manasj31/QuizMaster';
-
-  const [request, response, promptAsync] = Google.useAuthRequest(
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
     {
-      clientId: '873677963028-t7ef0gde5meg34p02nelartl4egagi02.apps.googleusercontent.com',
-      redirectUri,
-      scopes: ['profile', 'email'], // ✅ openid not needed for Firebase
-      responseType: 'id_token', // ✅ Firebase needs ID token
+      clientId: '873677963028-t7ef0gde5meg34p02nelartl4egagi02.apps.googleusercontent.com', // ✅ Web Client ID
+      scopes: ['profile', 'email'],
     },
     {
-      useProxy: true,
+      useProxy: true, // ✅ Use Expo Proxy for fallback
     }
   );
 
   useEffect(() => {
     if (response?.type === 'success') {
       const idToken = response.authentication?.idToken;
+
       if (!idToken) {
         Alert.alert('No ID Token returned from Google');
         return;
       }
 
-      const credential = GoogleAuthProvider.credential(idToken);
-      signInWithCredential(auth, credential)
-        .then(() => {
-          console.log('✅ Firebase login success');
-          router.replace('/onboarding/class');
+      console.log('🟢 ID Token (via Proxy):', idToken);
+
+      // Send to backend
+      fetch('http://192.168.29.3:3001/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.token) {
+            console.log('✅ Login success:', data.user);
+            router.replace('/onboarding/class');
+          } else {
+            console.error('❌ Backend error:', data.error);
+            Alert.alert('Login failed', data.error || 'Backend error');
+          }
         })
         .catch((err) => {
-          console.error('❌ Firebase error:', err);
-          Alert.alert('Firebase login failed');
+          console.error('❌ Network error:', err);
+          Alert.alert('Login failed', 'Network issue');
         });
     }
   }, [response]);
@@ -50,9 +56,12 @@ export default function LoginScreen() {
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <Button
-        title="Login with Google"
+        title="Login with Google (Proxy)"
         disabled={!request}
-        onPress={() => promptAsync({ useProxy: true })}
+        onPress={() => {
+          console.log('🟡 Proxy login button pressed');
+          promptAsync({ useProxy: true });
+        }}
       />
     </View>
   );

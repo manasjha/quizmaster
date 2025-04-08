@@ -4,6 +4,7 @@
     "slug": "QuizMaster",
     "owner": "manasj31",
     "version": "1.0.0",
+    "scheme": "quizmaster",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +16,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.manasj31.QuizMaster"
     },
     "web": {
       "bundler": "metro",
